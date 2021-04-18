@@ -3,27 +3,26 @@ sim_time = 5;             % Simulation Time
 dt       = 0.001;         % Time Step
 num      = sim_time/dt;   % number of steps 
 t        = [0:dt:(sim_time-dt)]; % Time array
-t = reshape(t, [num, 1]);
 g = 9.81;
 
 % Electrical Response of Motor
-v        = zeros(num, 1);    % Voltage Array
-I        = zeros(num, 1);    % Current Array
+v        = zeros(1, num);    % Voltage Array
+I        = zeros(1, num);    % Current Array
 
 % Beam Response Characteristics
 max_angle = 30*(pi/180);
-theta    = zeros(num, 1);    % Beam Angle
-theta_d  = zeros(num, 1);    % Beam Angular Velocity
-theta_dd = zeros(num, 1);    % Beam Acceleration
+theta    = zeros(1, num);    % Beam Angle
+theta_d  = zeros(1, num);    % Beam Angular Velocity
+theta_dd = zeros(1, num);    % Beam Acceleration
 
 % Ball Response Characteristics
-x        = zeros(num, 1);    % Ball Position
-x_d      = zeros(num, 1);    % Ball Velocity
-x_dd     = zeros(num, 1);    % Ball Acceleration
+x        = zeros(1, num);    % Ball Position
+x_d      = zeros(1, num);    % Ball Velocity
+x_dd     = zeros(1, num);    % Ball Acceleration
 
 % System Torques
-T_b      = zeros(num, 1);    % Torque from ball
-T_m      = zeros(num, 1);    % Torque from motor
+T_b      = zeros(1, num);    % Torque from ball
+T_m      = zeros(1, num);    % Torque from motor
 
 % Motor Characteristics
 R        = 1;            % Resistance
@@ -33,7 +32,7 @@ L        = 850e-6;       % Motor Inductance
 G        = 19.37;        % Gear ratio
 
 % System Interias
-J_sys    = zeros(num, 1);    % Load Interia (dynamic)
+J_sys    = zeros(1, num);    % Load Interia (dynamic)
 J_m      = 2.23e-3;       % Motor Intertia
 m_winding  = 90e-3;       % Winding Mass
 r_winding  = 11.5e-3;     % Winding Radius
@@ -46,7 +45,7 @@ l_platform = 170e-3;      % Platform length
 J_platform = m_platform*(l_platform^2)/12; % Plaform Intertia
 % The proper J_ball is based on it's location on the plane using
 % Parallel axis theorem
-J_b = zeros(num, 1);
+J_b = zeros(1, num);
 
 
 % Initial State
@@ -59,16 +58,17 @@ J_sys(1) = J_winding + J_shaft + J_platform + J_b(1);
 T_b(1) = T_ball(x(1), theta(1));
 T_m(1) = T_b(1) + J_sys(1)*theta_dd(1);
 
-Kp = 8;
-Ki = 0;
-Kd = 1;
-error = zeros(num, 1);
-cum_error = zeros(num, 1);
-rate_error = zeros(num, 1);
-response = zeros(num, 1);
+G = 1;
+Kp = G*8;
+Ki = G*0.2;
+Kd = G*8;
+
+error = zeros(1, num);
+cum_error = zeros(1, num);
+rate_error = zeros(1, num);
+response = zeros(1, num);
 
 error(1) = x(1);
-last_error = error(1);
 cum_error(1) = error(1)*dt;
 rate_error(1) = 0; 
 
@@ -76,7 +76,7 @@ for i = 1:num-1
     
     response(i) = -(Kp*error(i) + Ki*cum_error(i) + Kd*rate_error(i));
     v(i) = response(i);
-    I(i) = (v(i) - k_t*theta_d(i))/R;
+    I(i) = (v(i) - k_t*theta_d(i))/R; %TODO: assess with inductance
     
     if (v(i) > 12) 
         v(i) = 12; 
@@ -87,8 +87,8 @@ for i = 1:num-1
     
     T_m(i) = k_t * I(i);
     T_b(i) = T_ball(x(i), theta(i));
-    J_b(i+1) = J_ball(x(i)); 
-    J_sys(i+1) = J_winding + J_shaft + J_platform + J_b(i);
+    J_b(i) = J_ball(x(i)); 
+    J_sys(i) = J_winding + J_shaft + J_platform + J_b(i);
     
     if (theta(i) >= max_angle && T_m(i) > 0)
         theta_dd(i+1) = 0;
@@ -117,7 +117,7 @@ for i = 1:num-1
         x_dd(i+1) = 0;
         x_d(i+1) = 0;
     else  
-        x_dd(i+1) = (5/3)*theta(i)*g;
+        x_dd(i+1) = (5/3)*theta(i+1)*g;
         x_d(i+1) = x_d(i) + x_dd(i)*dt;
     end
     
@@ -136,7 +136,7 @@ for i = 1:num-1
     rate_error(i+1) = (error(i+1)-error(i))/dt; 
 end
 
-for i=1:num-1
+for i=1:num
     theta(i) = theta(i)*(180/pi);
 end
 
