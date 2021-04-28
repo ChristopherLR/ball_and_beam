@@ -49,8 +49,8 @@ J_b = zeros(1, num);
 
 
 % Initial State
-x(1) = -85e-3;           % The current position on the plane (starting)
-theta(1) = -30*(pi/180);          % degrees
+x(1) = 30e-3;           % The current position on the plane (starting)
+theta(1) = 0*(pi/180);          % degrees
 J_b(1) = J_ball(x(1));   % Initial Intertia From Ball
 J_sys(1) = J_winding + J_shaft + J_platform + J_b(1);
 
@@ -60,25 +60,30 @@ T_m(1) = T_b(1) + J_sys(1)*theta_dd(1);
 
 G = 1;
 Kp = G*8;
-Ki = G*0.2;
-Kd = G*8;
+Ki = G*0;
+Kd = G*3;
+Kdd = G*2;
 
 error = zeros(1, num);
 cum_error = zeros(1, num);
 rate_error = zeros(1, num);
+d_rate_error = zeros(1, num);
 response = zeros(1, num);
 
 error(1) = x(1);
 cum_error(1) = error(1)*dt;
-rate_error(1) = 0; 
+rate_error(1) = 0;
+d_rate_error(1) = 0;
+
 
 for i = 1:num-1
     
-    response(i) = -(Kp*error(i) + Ki*cum_error(i) + Kd*rate_error(i));
+    response(i) = -(Kp*error(i) + Ki*cum_error(i) + Kd*rate_error(i) + Kdd*d_rate_error(i));
     v(i) = response(i);
+    %v(i) = 0;
     I(i) = (v(i) - k_t*theta_d(i))/R; %TODO: assess with inductance
     
-    if (v(i) > 12) 
+    if (v(i) > 12) %
         v(i) = 12; 
     end
     if (v(i) < -12)
@@ -90,14 +95,14 @@ for i = 1:num-1
     J_b(i) = J_ball(x(i)); 
     J_sys(i) = J_winding + J_shaft + J_platform + J_b(i);
     
-    if (theta(i) >= max_angle && T_m(i) > 0)
+    if (theta(i) >= max_angle && T_m(i) < 0)
         theta_dd(i+1) = 0;
         theta_d(i+1) = 0;
-    elseif (theta(i) <= -max_angle && T_m(i) < 0)
+    elseif (theta(i) <= -max_angle && T_m(i) > 0)
         theta_dd(i+1) = 0;
         theta_d(i+1) = 0;
     else
-        theta_dd(i+1) = (T_m(i) - T_b(i))/J_sys(i); % TODO: assess with friction
+        theta_dd(i+1) = (T_m(i) + T_b(i))/J_sys(i); % TODO: assess with friction
         theta_d(i+1) = theta_d(i) + theta_dd(i)*dt;
     end
    
@@ -133,7 +138,8 @@ for i = 1:num-1
         
     error(i+1) = x(i+1);
     cum_error(i+1) = cum_error(i) + error(i+1)*dt;
-    rate_error(i+1) = (error(i+1)-error(i))/dt; 
+    rate_error(i+1) = (error(i+1)-error(i))/dt;
+    d_rate_error(i+1) = (rate_error(i+1) - rate_error(i))/dt;
 end
 
 for i=1:num
@@ -156,7 +162,7 @@ xlabel('Time [s]')
 
 subplot(rows,cols,3)
 plot(t,theta)
-ylabel('\theta [rad]')
+ylabel('\theta [Degrees]')
 xlabel('Time [s]')
 
 subplot(rows,cols,4)
@@ -182,10 +188,10 @@ subplot(rows,cols,[7, 8])
 plot(t,x)
 ylabel('x [m]')
 xlabel('Time [s]')
-ylim([-85e-3, 85e-3])
+%ylim([-85e-3, 85e-3])
 
 subplot(rows,cols,[9, 10])
-plot(t,response)
+plot(t,error)
 ylabel('error [m]')
 xlabel('Time [s]')
 
